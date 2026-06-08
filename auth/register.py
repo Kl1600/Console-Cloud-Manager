@@ -30,13 +30,15 @@ def create_user():
     while password_hasher_statut!=True:
          password_hasher=hash_password(password_user)
          password_hasher_statut=True
-    save_user(email_user,password_hasher)   
-    return "Votre compté a été créé avec succès"
+    if save_user(email_user,password_hasher)==200:
+        return "Votre compté a été créé avec succès"
+    else: 
+        return "Erreur : veuillez recommencez"
+
 
 import requests
-import base64
 import json
-from auth.register import password_hasher,email_user
+import base64
 
 
 def save_user(email_user, password_hasher):
@@ -44,37 +46,81 @@ def save_user(email_user, password_hasher):
     TOKEN = ""
     OWNER = "Kl1600"
     REPO = "Console-Cloud-Manager"
-    PATH = "compte.json"
+    FICHIER = "compte.json"
 
-    data = {
-        "email_acc": email_user,
-        "password_acc": password_hasher
-    }
-
-    contenu = json.dumps(data, indent=2)
-
-    url = f"https://api.github.com/repos/{OWNER}/{REPO}/contents/{PATH}"
+    url = f"https://api.github.com/repos/{OWNER}/{REPO}/contents/{FICHIER}"
 
     headers = {
         "Authorization": f"Bearer {TOKEN}",
         "Accept": "application/vnd.github+json"
     }
 
-    r = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
 
+    users = []
     sha = None
 
-    if r.status_code == 200:
-        sha = r.json()["sha"]
+    if response.status_code == 200:
+
+        file_data = response.json()
+
+        sha = file_data["sha"]
+
+        content_base64 = file_data["content"]
+
+        content = base64.b64decode(
+            content_base64
+        ).decode("utf-8")
+
+        # Si le fichier n'est pas vide
+        if content.strip():
+
+            try:
+                users = json.loads(content)
+
+            except json.JSONDecodeError:
+                print("Le fichier compte.json n'est pas un JSON valide.")
+                return
+
+        else:
+            users = []
+
+    elif response.status_code == 404:
+
+        # Le fichier n'existe pas encore
+        users = []
+
+    else:
+
+        print("Erreur GET :", response.status_code)
+        print(response.text)
+        return
+
+    # Ajout du nouvel utilisateur
+    users.append({
+        "email_acc": email_user,
+        "password_acc": password_hasher
+    })
+
+    # Conversion en JSON
+    json_content = json.dumps(
+        users,
+        indent=4,
+        ensure_ascii=False
+    )
+
+    # Encodage Base64 pour GitHub
+    encoded_content = base64.b64encode(
+        json_content.encode("utf-8")
+    ).decode("utf-8")
 
     payload = {
-        "message": "Mise à jour des données",
-        "content": base64.b64encode(
-            contenu.encode("utf-8")
-        ).decode("utf-8")
+        "message": f"Ajout utilisateur {email_user}",
+        "content": encoded_content
     }
 
-    if sha:
+    # Obligatoire si le fichier existe déjà
+    if sha is not None:
         payload["sha"] = sha
 
     response = requests.put(
@@ -82,8 +128,14 @@ def save_user(email_user, password_hasher):
         headers=headers,
         json=payload
     )
-     
-    
 
-              
-    
+    print("Status :", response.status_code)
+    print(response.text)
+
+    return response.status_code
+
+
+save_user(
+    "promopro01700@gmail.com",
+    "Motdepasse10"
+)
