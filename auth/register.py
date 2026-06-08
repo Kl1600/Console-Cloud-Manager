@@ -8,6 +8,7 @@ email_user=None
 password_user=None
 email_statut=False
 password_statut=False
+password_hasher_statut=False
 
 def create_user():
     while email_statut!=True:
@@ -26,11 +27,11 @@ def create_user():
          else:
               print("Mot de passe invalide")
               password_statut=False
-    return email_user,password_user
-
-
-password_hasher=hash_password(password_user)
-
+    while password_hasher_statut!=True:
+         password_hasher=hash_password(password_user)
+         password_hasher_statut=True
+    save_user(email_user,password_hasher)   
+    return "Votre compté a été créé avec succès"
 
 import requests
 import base64
@@ -46,8 +47,8 @@ def save_user(email_user, password_hasher):
     PATH = "compte.json"
 
     data = {
-        "email_user": email_user,
-        "password_user": password_hasher
+        "email_acc": email_user,
+        "password_acc": password_hasher
     }
 
     contenu = json.dumps(data, indent=2)
